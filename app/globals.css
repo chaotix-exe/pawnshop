@@ -80,3 +80,26 @@ a{color:inherit}
   .sidebar .spacer{display:none}
   .navlink{padding:8px 11px;font-size:13.5px}
 }
+
+/* ---------- Topbar layout (vervangt sidebar) ---------- */
+.topbar{position:sticky;top:0;z-index:50;background:rgba(12,16,11,.92);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line)}
+.topbar-inner{max-width:1400px;margin:0 auto;padding:0 26px;display:flex;align-items:center;gap:18px;height:64px}
+.topbar .logo{height:40px;width:auto;display:block;border-radius:7px}
+.topnav{display:flex;align-items:center;gap:4px;flex:1;overflow-x:auto}
+.toptab{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;text-decoration:none;
+  color:var(--muted);font-weight:600;font-size:14.5px;padding:20px 13px;border-bottom:3px solid transparent;transition:.13s}
+.toptab:hover{color:var(--cream)}
+.toptab.active{color:var(--green);border-bottom-color:var(--green)}
+.toptab .ic{font-size:16px}
+.topuser{display:flex;align-items:center;gap:12px;white-space:nowrap}
+.topuser .nm{font-size:13px;color:var(--muted);text-align:right;line-height:1.2}
+.container{max-width:1400px;margin:0 auto;padding:26px}
+.container h2.page{font-size:26px;margin:0 0 18px}
+@media(max-width:760px){
+  .topbar-inner{flex-wrap:wrap;height:auto;padding:10px 14px;gap:10px}
+  .topnav{order:3;width:100%}
+  .toptab{padding:10px 10px;border-bottom-width:2px}
+  .container{padding:16px}
+  .topuser .nm{display:none}
+}
