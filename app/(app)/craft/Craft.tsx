@@ -34,8 +34,8 @@ export default function Craft({ recipes, prices }: { recipes: Recipe[]; prices: 
   }
 
   return (
-    <div className="panel">
-      <h2 style={{ color: "#3ddc4a" }}>Craft-calculator</h2>
+    <div className="panel" style={{ maxWidth: 860 }}>
+      <h2 style={{ fontSize: 22, margin: "0 0 12px" }}>Craft-calculator</h2>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div style={{ minWidth: 150 }}><label>Tafel</label><select value={station} onChange={e => { setStation(e.target.value); }}>{stations.map(s => <option key={s}>{s}</option>)}</select></div>
         <div style={{ flex: 2, minWidth: 160 }}><label>Product</label><select value={product} onChange={e => setProduct(e.target.value)}>{prods.map(p => <option key={p}>{p}</option>)}</select></div>

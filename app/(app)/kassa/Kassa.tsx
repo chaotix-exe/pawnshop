@@ -58,7 +58,7 @@ export default function Kassa({ items }: { items: Item[] }) {
   const other = it ? (mode === "Verkoop" ? it.aankoopprijs : it.verkoopprijs) : null;
 
   return (
-    <div className="panel">
+    <div className="panel" style={{ maxWidth: 780 }}>
       <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid #2c3327", marginBottom: 8 }}>
         <button onClick={() => switchMode("Verkoop")} style={{ flex: 1, padding: 12, border: 0, fontWeight: 800, cursor: "pointer", background: mode === "Verkoop" ? "#2E7D32" : "#20261d", color: mode === "Verkoop" ? "#fff" : "#9aa593" }}>VERKOOP</button>
         <button onClick={() => switchMode("Inkoop")} style={{ flex: 1, padding: 12, border: 0, fontWeight: 800, cursor: "pointer", background: mode === "Inkoop" ? "#C62828" : "#20261d", color: mode === "Inkoop" ? "#fff" : "#9aa593" }}>INKOOP</button>
