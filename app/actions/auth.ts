@@ -51,8 +51,30 @@ export async function createEmployee(_prev: any, formData: FormData) {
     email: usernameToEmail(username), password, email_confirm: true,
   });
   if (error || !created.user) return { error: "Aanmaken mislukt: " + (error?.message || "") };
-  await admin.from("profiles").insert({ id: created.user.id, username, naam, rol });
-  revalidatePath("/admin");
+  await admin.from("profiles").insert({
+    id: created.user.id, username, naam, rol,
+    functie: String(formData.get("functie") || "") || null,
+    bio: String(formData.get("bio") || "") || null,
+    foto_url: String(formData.get("foto_url") || "") || null,
+  });
+  revalidatePath("/admin"); revalidatePath("/info");
+  return { ok: true };
+}
+
+// Admin-only: profiel (functie/bio/foto/naam/rol) van bestaande medewerker bijwerken
+export async function updateProfile(_prev: any, formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") || "");
+  const rec = {
+    naam: String(formData.get("naam") || "") || null,
+    rol: (String(formData.get("rol") || "medewerker") as "admin" | "medewerker"),
+    functie: String(formData.get("functie") || "") || null,
+    bio: String(formData.get("bio") || "") || null,
+    foto_url: String(formData.get("foto_url") || "") || null,
+  };
+  const { error } = await supabaseAdmin().from("profiles").update(rec).eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin"); revalidatePath("/info");
   return { ok: true };
 }
 
