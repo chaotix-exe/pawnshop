@@ -15,7 +15,7 @@ export default function PromoGrid({ items }: { items: { name: string; url: strin
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 16 }}>
       {items.map(it => (
-        <div key={it.name} className="panel" style={{ margin: 0, padding: 12 }}>
+        <div key={it.name} className="panel lift" style={{ margin: 0, padding: 12 }}>
           <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)", background: "#000", aspectRatio: "1 / 1", display: "grid", placeItems: "center" }}>
             <img src={it.url} alt={it.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>

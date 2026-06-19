@@ -40,7 +40,7 @@ export default async function InfoPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 14, marginBottom: 16 }}>
         {waarden.map(w => (
-          <div key={w.t} className="panel" style={{ margin: 0, padding: 20 }}>
+          <div key={w.t} className="panel lift" style={{ margin: 0, padding: 20 }}>
             <div style={{ fontSize: 32 }}>{w.icon}</div>
             <div className="display" style={{ fontSize: 20, marginTop: 8 }}>{w.t}</div>
             <p style={{ color: "var(--cream)", opacity: .8, fontSize: 15, lineHeight: 1.6, margin: "6px 0 0" }}>{w.d}</p>
@@ -64,7 +64,7 @@ export default async function InfoPage() {
         <p style={{ color: "var(--muted)", fontSize: 14, margin: "0 0 18px" }}>De gezichten achter de toonbank.</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 16 }}>
           {(team || []).map((m: any) => (
-            <div key={m.username} style={{ background: "linear-gradient(180deg,var(--panel2),#141a12)", border: "1px solid var(--line)", borderRadius: 16, padding: 20, textAlign: "center", position: "relative", overflow: "hidden" }}>
+            <div key={m.username} className="lift" style={{ background: "linear-gradient(180deg,var(--panel2),#141a12)", border: "1px solid var(--line)", borderRadius: 16, padding: 20, textAlign: "center", position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 52, background: "linear-gradient(90deg,#1f5d27,#143f1a)" }} />
               <div style={{ position: "relative", width: 92, height: 92, borderRadius: "50%", overflow: "hidden", margin: "16px auto 12px", background: "#0e120c", border: "3px solid var(--bg)", boxShadow: "0 0 0 2px var(--green)", display: "grid", placeItems: "center" }}>
                 {m.foto_url ? <img src={m.foto_url} alt={m.naam || m.username} style={{ width: "100%", height: "100%", objectFit: "cover" }} />

@@ -1,23 +1,46 @@
 import { requireUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import DashCharts from "./DashCharts";
 
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
-  const me = await requireUser();
+  await requireUser();
   const sb = supabaseAdmin();
-  const { data: tx } = await sb.from("transactions").select("type, totaal, item, datum, klant, medewerker").order("datum", { ascending: false });
+  const { data: tx } = await sb.from("transactions").select("type,totaal,item,aantal,datum,klant,medewerker").order("datum", { ascending: false });
+  const { data: items } = await sb.from("items").select("item,categorie");
   const { count: openTodos } = await sb.from("craft_todos").select("*", { count: "exact", head: true }).eq("klaar", false);
-  let ink = 0, ver = 0, ni = 0, nv = 0;
-  (tx || []).forEach((t: any) => {
-    if (t.type === "Inkoop") { ink += Number(t.totaal) || 0; ni++; }
-    else { ver += Number(t.totaal) || 0; nv++; }
-  });
-  const eur = (n: number) => "€" + Math.round(n).toLocaleString("nl-NL");
-  const recent = (tx || []).slice(0, 8);
 
+  const cat: Record<string, string> = {};
+  (items || []).forEach((i: any) => { cat[String(i.item).toLowerCase()] = i.categorie; });
+
+  let ink = 0, ver = 0, ni = 0, nv = 0;
+  const perDay: Record<string, { v: number; i: number }> = {};
+  const perItem: Record<string, number> = {};
+  const perCat: Record<string, number> = {};
+  (tx || []).forEach((t: any) => {
+    const tot = Number(t.totaal) || 0;
+    const d = new Date(t.datum); const key = d.toISOString().slice(0, 10);
+    perDay[key] = perDay[key] || { v: 0, i: 0 };
+    if (t.type === "Inkoop") { ink += tot; ni++; perDay[key].i += tot; }
+    else {
+      ver += tot; nv++; perDay[key].v += tot;
+      perItem[t.item] = (perItem[t.item] || 0) + (Number(t.aantal) || 0);
+      const c = cat[String(t.item).toLowerCase()] || "Overig";
+      perCat[c] = (perCat[c] || 0) + tot;
+    }
+  });
+
+  const timeline = Object.keys(perDay).sort().map(k => ({
+    datum: new Date(k).toLocaleDateString("nl-NL", { day: "2-digit", month: "2-digit" }),
+    Verkoop: Math.round(perDay[k].v), Inkoop: Math.round(perDay[k].i), Marge: Math.round(perDay[k].v - perDay[k].i),
+  }));
+  const topItems = Object.entries(perItem).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, aantal]) => ({ name, aantal }));
+  const catData = Object.entries(perCat).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value: Math.round(value) }));
+
+  const eur = (n: number) => "€" + Math.round(n).toLocaleString("nl-NL");
   const Stat = ({ l, v, c, sub }: any) => (
-    <div className="panel" style={{ margin: 0, padding: 16 }}>
+    <div className="panel lift" style={{ margin: 0, padding: 18 }}>
       <div style={{ color: "var(--muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: .5, fontWeight: 600 }}>{l}</div>
       <div className="display" style={{ fontSize: 30, color: c, marginTop: 4 }}>{v}</div>
       {sub && <div style={{ color: "var(--muted)", fontSize: 12 }}>{sub}</div>}
@@ -26,29 +49,14 @@ export default async function Dashboard() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 24, margin: "2px 0 14px" }}>Dashboard</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12, marginBottom: 4 }}>
+      <h2 className="page">Dashboard</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginBottom: 14 }}>
         <Stat l="Verkocht" v={eur(ver)} c="var(--green)" sub={nv + " transacties"} />
         <Stat l="Ingekocht" v={eur(ink)} c="var(--red)" sub={ni + " transacties"} />
         <Stat l="Bruto marge" v={eur(ver - ink)} c={(ver - ink) >= 0 ? "var(--gold)" : "var(--red)"} />
         <Stat l="Open to-do's" v={String(openTodos ?? 0)} c="var(--cream)" sub="craftlijst" />
       </div>
-      <div className="panel">
-        <h3 style={{ fontSize: 15, color: "var(--gold)", margin: "0 0 8px" }}>Recente transacties</h3>
-        {recent.length === 0 ? <p className="muted" style={{ margin: 0 }}>Nog geen transacties — registreer je eerste in de Kassa.</p> : (
-          <table>
-            <thead><tr><th>Datum</th><th>Type</th><th>Item</th><th>Klant</th><th>Door</th><th className="r">Totaal</th></tr></thead>
-            <tbody>{recent.map((t: any, i: number) => (
-              <tr key={i}>
-                <td className="muted">{new Date(t.datum).toLocaleDateString("nl-NL")}</td>
-                <td><span style={{ color: t.type === "Verkoop" ? "var(--green)" : "var(--red)", fontWeight: 700 }}>{t.type}</span></td>
-                <td>{t.item}</td><td className="muted">{t.klant || "—"}</td><td className="muted">{t.medewerker || "—"}</td>
-                <td className="r">{eur(Number(t.totaal) || 0)}</td>
-              </tr>
-            ))}</tbody>
-          </table>
-        )}
-      </div>
+      <DashCharts timeline={timeline} topItems={topItems} catData={catData} hasData={(tx || []).length > 0} />
     </div>
   );
 }
