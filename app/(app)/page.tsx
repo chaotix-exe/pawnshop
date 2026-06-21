@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import DashCharts from "./DashCharts";
 import Board from "./Board";
+import Payouts from "./Payouts";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export default async function Dashboard() {
   const me = await requireUser();
   const sb = supabaseAdmin();
   const { data: announcements } = await sb.from("announcements").select("*").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(20);
+  const { data: openInkoop } = await sb.from("transactions").select("id,medewerker,item,aantal,totaal,datum,klant").eq("type", "Inkoop").eq("uitbetaald", false).order("medewerker");
   const { data: tx } = await sb.from("transactions").select("type,totaal,item,aantal,datum,klant,medewerker").order("datum", { ascending: false });
   const { data: items } = await sb.from("items").select("item,categorie");
   const { count: openTodos } = await sb.from("craft_todos").select("*", { count: "exact", head: true }).eq("klaar", false);
@@ -53,6 +55,7 @@ export default async function Dashboard() {
     <div>
       <h2 className="page">Dashboard</h2>
       <Board items={(announcements as any) || []} isAdmin={me.rol === "admin"} />
+      <Payouts rows={(openInkoop as any) || []} isAdmin={me.rol === "admin"} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginBottom: 14 }}>
         <Stat l="Verkocht" v={eur(ver)} c="var(--green)" sub={nv + " transacties"} />
         <Stat l="Ingekocht" v={eur(ink)} c="var(--red)" sub={ni + " transacties"} />
