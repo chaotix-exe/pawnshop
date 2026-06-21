@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { logout } from "@/app/actions/auth";
 import NavBar from "./NavBar";
+import CoinGame from "./CoinGame";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await requireUser();
@@ -17,6 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
       <main className="container">{children}</main>
+      <CoinGame />
     </div>
   );
 }
