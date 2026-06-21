@@ -67,7 +67,7 @@ export default function Kassa({ items }: { items: Item[] }) {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div style={{ flex: 2, minWidth: 160 }}><label>Item</label>
           <select value={sel} onChange={e => pick(e.target.value)}>
-            {Object.entries(cats).map(([c, list]) => <optgroup key={c} label={c}>{list.map(i => <option key={i.item} value={i.item}>{i.item}</option>)}</optgroup>)}
+            {Object.entries(cats).sort((a, b) => a[0] === "Diversen" ? 1 : b[0] === "Diversen" ? -1 : a[0].localeCompare(b[0])).map(([c, list]) => <optgroup key={c} label={c}>{list.map(i => <option key={i.item} value={i.item}>{i.item}</option>)}</optgroup>)}
           </select>
         </div>
         <div style={{ width: 80 }}><label>Aantal</label><input type="number" min={1} value={qty} onChange={e => setQty(Number(e.target.value))} /></div>
