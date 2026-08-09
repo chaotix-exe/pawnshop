@@ -64,10 +64,15 @@ function Column({ mode, items }: { mode: "Verkoop" | "Inkoop"; items: Item[] }) 
   }, [q, items]);
 
   function add(it: Item) {
+    // items met dezelfde naam in verschillende categorieën (bv. blueprint vs echt item)
+    // moeten los van elkaar op de bon komen
+    const dup = items.filter(x => x.item === it.item).length > 1;
+    const label = dup ? `${it.item} (${it.categorie})` : it.item;
+    const prijs = priceOf(it) ?? 0;
     setLines(prev => {
-      const i = prev.findIndex(l => l.item === it.item);
+      const i = prev.findIndex(l => l.item === label);
       if (i >= 0) { const c = [...prev]; c[i] = { ...c[i], aantal: c[i].aantal + 1 }; return c; }
-      return [...prev, { item: it.item, aantal: 1, prijs_ps: priceOf(it) ?? 0 }];
+      return [...prev, { item: label, aantal: 1, prijs_ps: prijs }];
     });
   }
   function setQty(i: number, d: number) { setLines(p => p.map((l, j) => j === i ? { ...l, aantal: Math.max(1, l.aantal + d) } : l)); }
@@ -103,10 +108,10 @@ function Column({ mode, items }: { mode: "Verkoop" | "Inkoop"; items: Item[] }) 
       </div>
       <div className="muted" style={{ fontSize: 11, margin: "4px 2px" }}>{results.length} van {items.length} items</div>
       <div style={{ maxHeight: 240, overflowY: "auto", margin: "2px 0 6px", border: "1px solid var(--line)", borderRadius: 10 }}>
-        {results.map(it => {
+        {results.map((it, idx) => {
           const p = priceOf(it);
           return (
-            <button key={it.item} onClick={() => add(it)} className="kres"
+            <button key={it.categorie + "|" + it.item + "|" + idx} onClick={() => add(it)} className="kres"
               style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8,
                 background: "transparent", border: 0, borderBottom: "1px solid var(--line)", color: "var(--cream)",
                 padding: "9px 11px", cursor: "pointer", textAlign: "left", fontSize: 13.5 }}>
