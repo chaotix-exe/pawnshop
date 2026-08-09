@@ -31,11 +31,36 @@ function Column({ mode, items }: { mode: "Verkoop" | "Inkoop"; items: Item[] }) 
   const [msg, setMsg] = useState<{ t: string; err?: boolean } | null>(null);
 
   const priceOf = (it: Item) => (isSell ? it.verkoopprijs : it.aankoopprijs);
+
+  // normaliseer: kleine letters, accenten weg, alle niet-letters/cijfers weg
+  const norm = (s: string) => (s || "").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+
   const results = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    let list = items;
-    if (s) list = items.filter(i => i.item.toLowerCase().includes(s) || i.categorie.toLowerCase().includes(s));
-    return list.slice(0, 60);
+    const terms = norm(q).split(" ").filter(Boolean);
+    const scored = items.map(it => {
+      const name = norm(it.item);
+      const cat = norm(it.categorie);
+      const hay = name + " " + cat;
+      if (terms.length === 0) return { it, score: 0 };
+      // elk woord moet ergens voorkomen (zo werkt "gouden dol" ook)
+      if (!terms.every(t => hay.includes(t))) return null;
+      const first = terms[0];
+      let score = 4;
+      if (name === norm(q)) score = 0;                  // exacte naam
+      else if (name.startsWith(first)) score = 1;        // begint ermee
+      else if (name.split(" ").some(w => w.startsWith(first))) score = 2; // woord begint ermee
+      else if (name.includes(first)) score = 3;          // ergens in naam
+      return { it, score };                              // anders: alleen categorie
+    }).filter(Boolean) as { it: Item; score: number }[];
+
+    scored.sort((a, b) =>
+      a.score - b.score ||
+      a.it.categorie.localeCompare(b.it.categorie) ||
+      a.it.item.localeCompare(b.it.item)
+    );
+    return scored.map(s => s.it);
   }, [q, items]);
 
   function add(it: Item) {
@@ -70,8 +95,14 @@ function Column({ mode, items }: { mode: "Verkoop" | "Inkoop"; items: Item[] }) 
         <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>{isSell ? "aan de klant" : "van de klant"}</span>
       </div>
 
-      <input placeholder="🔍 Zoek item…" value={q} onChange={e => setQ(e.target.value)} />
-      <div style={{ maxHeight: 190, overflowY: "auto", margin: "8px 0 6px", border: "1px solid var(--line)", borderRadius: 10 }}>
+      <div style={{ position: "relative" }}>
+        <input placeholder="🔍 Zoek item… (Enter = eerste toevoegen)" value={q}
+          onChange={e => setQ(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && results[0]) { add(results[0]); setQ(""); } if (e.key === "Escape") setQ(""); }} />
+        {q && <span onClick={() => setQ("")} style={{ position: "absolute", right: 10, top: 9, cursor: "pointer", color: "var(--muted)" }}>✕</span>}
+      </div>
+      <div className="muted" style={{ fontSize: 11, margin: "4px 2px" }}>{results.length} van {items.length} items</div>
+      <div style={{ maxHeight: 240, overflowY: "auto", margin: "2px 0 6px", border: "1px solid var(--line)", borderRadius: 10 }}>
         {results.map(it => {
           const p = priceOf(it);
           return (
