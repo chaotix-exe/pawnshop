@@ -1,18 +1,25 @@
 "use server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 const BUCKET = "promo";
 
 export async function listPromo() {
-  const { data } = await supabaseAdmin().storage.from(BUCKET).list("", {
-    limit: 200, sortBy: { column: "created_at", order: "desc" },
-  });
+  const sb = supabaseAdmin();
+  const { data: files } = await sb.storage.from(BUCKET).list("", { limit: 200, sortBy: { column: "created_at", order: "desc" } });
+  const { data: meta } = await sb.from("promo_media").select("path,label,custom_url");
+  const metaMap: Record<string, any> = {};
+  (meta || []).forEach((m: any) => { metaMap[m.path] = m; });
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL + "/storage/v1/object/public/" + BUCKET + "/";
-  return (data || [])
+  return (files || [])
     .filter(f => f.name && f.name !== ".emptyFolderPlaceholder")
-    .map(f => ({ name: f.name, url: base + encodeURIComponent(f.name) }));
+    .map(f => ({
+      path: f.name,
+      publicUrl: base + encodeURIComponent(f.name),
+      customUrl: metaMap[f.name]?.custom_url || "",
+      label: metaMap[f.name]?.label || "",
+    }));
 }
 
 export async function uploadPromo(formData: FormData) {
@@ -26,12 +33,23 @@ export async function uploadPromo(formData: FormData) {
   const buf = Buffer.from(await file.arrayBuffer());
   const { error } = await supabaseAdmin().storage.from(BUCKET).upload(path, buf, { contentType: file.type || "image/png", upsert: false });
   if (error) throw new Error(error.message);
+  await supabaseAdmin().from("promo_media").insert({ path, label: label || null });
+  revalidatePath("/promo");
+}
+
+export async function setPromoLink(formData: FormData) {
+  await requireAdmin();
+  const path = String(formData.get("path") || "");
+  const custom_url = String(formData.get("custom_url") || "").trim() || null;
+  const label = String(formData.get("label") || "").trim() || null;
+  if (!path) return;
+  await supabaseAdmin().from("promo_media").upsert({ path, custom_url, label });
   revalidatePath("/promo");
 }
 
 export async function deletePromo(formData: FormData) {
-  await requireUser();
-  const name = String(formData.get("name") || "");
-  if (name) await supabaseAdmin().storage.from(BUCKET).remove([name]);
+  await requireAdmin();
+  const path = String(formData.get("path") || "");
+  if (path) { await supabaseAdmin().storage.from(BUCKET).remove([path]); await supabaseAdmin().from("promo_media").delete().eq("path", path); }
   revalidatePath("/promo");
 }

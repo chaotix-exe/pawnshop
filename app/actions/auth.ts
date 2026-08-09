@@ -11,7 +11,7 @@ export async function login(_prev: any, formData: FormData) {
   const sb = supabaseServer();
   const { error } = await sb.auth.signInWithPassword({ email: usernameToEmail(username), password });
   if (error) return { error: "Onjuiste gebruikersnaam of wachtwoord." };
-  redirect("/");
+  redirect("/info");
 }
 
 export async function logout() {

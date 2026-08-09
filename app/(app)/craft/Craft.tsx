@@ -4,9 +4,8 @@ import { addTodo } from "@/app/actions/data";
 
 type Ing = { ingredient: string; aantal: number; eenheid: string; opmerking: string | null };
 type Recipe = { id: number; station: string; product: string; tijd: number; recipe_ingredients: Ing[] };
-const eur = (n: number) => "€" + Math.round(n || 0).toLocaleString("nl-NL");
 
-export default function Craft({ recipes, prices }: { recipes: Recipe[]; prices: Record<string, number> }) {
+export default function Craft({ recipes }: { recipes: Recipe[]; prices?: any }) {
   const stations = useMemo(() => [...new Set(recipes.map(r => r.station))], [recipes]);
   const [station, setStation] = useState(stations[0] || "");
   const prods = useMemo(() => recipes.filter(r => r.station === station).map(r => r.product).sort(), [recipes, station]);
@@ -18,46 +17,74 @@ export default function Craft({ recipes, prices }: { recipes: Recipe[]; prices: 
   const rec = recipes.find(r => r.station === station && r.product === product);
   function calc() {
     if (!rec) return;
-    let matRows: any[] = [], tools: string[] = [], money = 0, matTotal = 0, unknown = false;
+    const mats: any[] = [], tools: string[] = []; let money = 0;
     rec.recipe_ingredients.forEach(ing => {
-      if (ing.eenheid === "%") { tools.push(`${ing.ingredient}: ${ing.aantal * qty}%${ing.opmerking ? " · " + ing.opmerking : ""}`); return; }
+      if (ing.eenheid === "%") { tools.push(`${ing.ingredient}: ${ing.aantal * qty}%`); return; }
       if (ing.ingredient.toLowerCase() === "geld") { money += ing.aantal * qty; return; }
-      const need = ing.aantal * qty; const pr = prices[ing.ingredient.toLowerCase()];
-      const cost = pr != null ? pr * need : null; if (pr != null) matTotal += cost!; else unknown = true;
-      matRows.push({ name: ing.ingredient, note: ing.opmerking, need, pr: pr ?? null, cost });
+      mats.push({ name: ing.ingredient, need: ing.aantal * qty, note: ing.opmerking });
     });
-    setOut({ matRows, tools, money, matTotal, unknown, tijd: rec.tijd });
+    setOut({ mats, tools, money, tijd: rec.tijd, product, qty }); setMsg("");
   }
   async function toTodo() {
-    try { await addTodo({ item: product, aantal: qty, voor: "voorraad" }); setMsg("Op de to-do lijst gezet ✓"); }
+    try { await addTodo({ item: out.product, aantal: out.qty, voor: "voorraad" }); setMsg("Op de to-do lijst gezet ✓"); }
     catch (e: any) { setMsg("Fout: " + e.message); }
   }
 
   return (
-    <div className="panel">
-      <h2 style={{ fontSize: 22, margin: "0 0 12px" }}>Craft-calculator</h2>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-        <div style={{ minWidth: 150 }}><label>Tafel</label><select value={station} onChange={e => { setStation(e.target.value); }}>{stations.map(s => <option key={s}>{s}</option>)}</select></div>
-        <div style={{ flex: 2, minWidth: 160 }}><label>Product</label><select value={product} onChange={e => setProduct(e.target.value)}>{prods.map(p => <option key={p}>{p}</option>)}</select></div>
-        <div style={{ width: 80 }}><label>Aantal</label><input type="number" min={1} value={qty} onChange={e => setQty(Number(e.target.value))} /></div>
-        <button className="btn sm" onClick={calc}>Bereken</button>
-      </div>
-      {out && (
-        <div style={{ marginTop: 12 }}>
-          <h3 style={{ color: "#f0c43c", fontSize: 14 }}>Materialen nodig</h3>
-          <table><thead><tr><th>Materiaal</th><th className="r">Nodig</th><th className="r">Richtprijs</th><th className="r">Kosten</th></tr></thead>
-            <tbody>{out.matRows.length ? out.matRows.map((m: any, i: number) => <tr key={i}><td>{m.name}{m.note ? <span style={{ color: "#9aa593" }}> ({m.note})</span> : ""}</td><td className="r">{m.need}x</td><td className="r">{m.pr != null ? eur(m.pr) : "—"}</td><td className="r">{m.cost != null ? eur(m.cost) : "?"}</td></tr>) : <tr><td colSpan={4} style={{ color: "#9aa593" }}>Geen grondstoffen</td></tr>}</tbody>
-          </table>
-          {out.tools.length > 0 && <><h3 style={{ color: "#f0c43c", fontSize: 14 }}>Gereedschap / blueprints (slijtage)</h3><div>{out.tools.map((t: string, i: number) => <span key={i} style={{ display: "inline-block", background: "#20261d", border: "1px solid #2c3327", borderRadius: 20, padding: "3px 10px", fontSize: 12, color: "#9aa593", margin: "2px 4px 2px 0" }}>{t}</span>)}</div></>}
-          {out.money > 0 && <><h3 style={{ color: "#f0c43c", fontSize: 14 }}>Cash nodig</h3><div style={{ fontSize: 22, fontWeight: 900, color: "#f0c43c" }}>{eur(out.money)}</div></>}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14 }}>
-            <div><span style={{ color: "#9aa593" }}>Geschatte materiaalkost</span><div style={{ fontSize: 24, fontWeight: 900, color: "#3ddc4a" }}>{eur(out.matTotal)}</div></div>
-            <button className="btn ghost sm" onClick={toTodo}>📋 Zet op to-do</button>
+    <div>
+      <h2 className="page">Craft-calculator</h2>
+      <div className="panel">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr auto auto", gap: 12, alignItems: "end" }} className="craft-top">
+          <div><label>Craft-tafel</label><select value={station} onChange={e => { setStation(e.target.value); setOut(null); }}>{stations.map(s => <option key={s}>{s}</option>)}</select></div>
+          <div><label>Product</label><select value={product} onChange={e => { setProduct(e.target.value); setOut(null); }}>{prods.map(p => <option key={p}>{p}</option>)}</select></div>
+          <div style={{ width: 120 }}><label>Aantal</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <button className="qbtn" onClick={() => setQty(q => Math.max(1, q - 1))}>−</button>
+              <input type="number" min={1} value={qty} onChange={e => setQty(Math.max(1, Number(e.target.value)))} style={{ textAlign: "center" }} />
+              <button className="qbtn" onClick={() => setQty(q => q + 1)}>+</button>
+            </div>
           </div>
-          <p style={{ color: "#9aa593", fontSize: 12 }}>{out.unknown ? "⚠ Sommige materialen hebben geen richtprijs en tellen niet mee. " : ""}Craft-tijd: {out.tijd}s p/stuk.</p>
-          {msg && <p style={{ color: "#3ddc4a", fontSize: 13 }}>{msg}</p>}
+          <button className="btn" style={{ color: "#fff" }} onClick={calc}>Bereken</button>
+        </div>
+      </div>
+
+      {out && (
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16 }} className="craft-out">
+          <div className="panel" style={{ margin: 0 }}>
+            <h3 style={{ fontSize: 15, color: "var(--gold)", margin: "0 0 4px" }}>🧱 Benodigde materialen</h3>
+            <p className="muted" style={{ fontSize: 12, margin: "0 0 12px" }}>Voor {out.qty}× <b style={{ color: "var(--cream)" }}>{out.product}</b></p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 10 }}>
+              {out.mats.length ? out.mats.map((m: any, i: number) => (
+                <div key={i} style={{ background: "var(--panel2)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 13 }}>{m.name}{m.note ? <span className="muted" style={{ fontSize: 10, display: "block" }}>{m.note}</span> : null}</span>
+                  <b className="display" style={{ fontSize: 18, color: "var(--green)" }}>{m.need}×</b>
+                </div>
+              )) : <p className="muted">Geen grondstoffen.</p>}
+            </div>
+          </div>
+
+          <div className="panel" style={{ margin: 0 }}>
+            {out.tools.length > 0 && <>
+              <h3 style={{ fontSize: 15, color: "var(--gold)", margin: "0 0 8px" }}>🔧 Gereedschap / blueprints</h3>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 16 }}>
+                {out.tools.map((t: string, i: number) => <span key={i} className="tag">{t}</span>)}
+              </div>
+            </>}
+            {out.money > 0 && <>
+              <h3 style={{ fontSize: 15, color: "var(--gold)", margin: "0 0 6px" }}>💵 Cash nodig</h3>
+              <div className="display" style={{ fontSize: 26, color: "var(--gold)", marginBottom: 16 }}>€{(out.money).toLocaleString("nl-NL")}</div>
+            </>}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span className="tag">⏱️ {out.tijd}s per stuk</span>
+              <button className="btn ghost sm" onClick={toTodo}>📋 Zet op to-do</button>
+            </div>
+            {msg && <p style={{ color: "var(--green)", fontSize: 13, marginTop: 10 }}>{msg}</p>}
+          </div>
         </div>
       )}
+      <style>{`.qbtn{width:30px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--cream);cursor:pointer;font-size:17px}
+        .qbtn:hover{border-color:var(--green);color:var(--green)}
+        @media(max-width:820px){.craft-top{grid-template-columns:1fr 1fr !important}.craft-out{grid-template-columns:1fr !important}}`}</style>
     </div>
   );
 }

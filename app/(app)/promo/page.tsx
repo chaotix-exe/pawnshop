@@ -5,7 +5,7 @@ import PromoGrid from "./PromoGrid";
 export const dynamic = "force-dynamic";
 
 export default async function PromoPage() {
-  await requireUser();
+  const me = await requireUser();
   const items = await listPromo();
   return (
     <div>
@@ -13,17 +13,17 @@ export default async function PromoPage() {
       <div className="panel">
         <h3 style={{ fontSize: 15, color: "var(--gold)", margin: "0 0 4px" }}>Nieuwe afbeelding uploaden</h3>
         <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 12px" }}>
-          Upload posters, openingstijden of "We're open"-beelden. Het team kan ze hier kopiëren en op Birdy plaatsen.
+          Upload posters, openingstijden of "We're open"-beelden. Stel er een eigen link bij in die werkt in FiveM, en het team kan die kopiëren.
         </p>
         <form action={uploadPromo}>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
             <div style={{ flex: 1, minWidth: 180 }}><label>Label (optioneel)</label><input name="label" placeholder="bv. openingstijden-weekend" /></div>
             <div style={{ flex: 1, minWidth: 180 }}><label>Afbeelding</label><input name="file" type="file" accept="image/*" required /></div>
-            <button className="btn">⬆ Uploaden</button>
+            <button className="btn" style={{ color: "#fff" }}>⬆ Uploaden</button>
           </div>
         </form>
       </div>
-      <PromoGrid items={items} />
+      <PromoGrid items={items} isAdmin={me.rol === "admin"} />
     </div>
   );
 }

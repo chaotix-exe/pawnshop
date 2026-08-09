@@ -3,13 +3,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items = [
-  { href: "/", label: "Dashboard", icon: "📊" },
+  { href: "/info", label: "Over", icon: "🏪" },
   { href: "/kassa", label: "Kassa", icon: "💵" },
-  { href: "/craft", label: "Craften", icon: "🛠️" },
+  { href: "/craft", label: "Craft-calculator", icon: "🛠️" },
   { href: "/todo", label: "To-do", icon: "📋" },
-  { href: "/historie", label: "Historie", icon: "📁" },
+  { href: "/", label: "Dashboard", icon: "📊" },
+  { href: "/historie", label: "History", icon: "📁" },
   { href: "/promo", label: "Promo", icon: "🖼️" },
-  { href: "/info", label: "Over", icon: "ℹ️" },
 ];
 
 export default function NavBar({ isAdmin }: { isAdmin: boolean }) {

@@ -7,87 +7,122 @@ type Line = { item: string; aantal: number; prijs_ps: number };
 const eur = (n: number) => "€" + Math.round(n || 0).toLocaleString("nl-NL");
 
 export default function Kassa({ items }: { items: Item[] }) {
-  const [mode, setMode] = useState<"Verkoop" | "Inkoop">("Verkoop");
-  const [sel, setSel] = useState(items[0]?.item || "");
-  const [qty, setQty] = useState(1);
-  const [price, setPrice] = useState<number | "">("");
+  return (
+    <div>
+      <h2 className="page">Kassa</h2>
+      <div className="kassa-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <Column mode="Verkoop" items={items} />
+        <Column mode="Inkoop" items={items} />
+      </div>
+      <style>{`@media(max-width:900px){.kassa-grid{grid-template-columns:1fr !important}}`}</style>
+    </div>
+  );
+}
+
+function Column({ mode, items }: { mode: "Verkoop" | "Inkoop"; items: Item[] }) {
+  const isSell = mode === "Verkoop";
+  const accent = isSell ? "var(--green)" : "var(--red)";
+  const [q, setQ] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [klant, setKlant] = useState("");
   const [paid, setPaid] = useState(true);
   const [note, setNote] = useState("");
-  const [msg, setMsg] = useState<{ t: string; err?: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ t: string; err?: boolean } | null>(null);
 
-  const byName = useMemo(() => Object.fromEntries(items.map(i => [i.item, i])), [items]);
-  const cats = useMemo(() => {
-    const m: Record<string, Item[]> = {};
-    items.forEach(i => { (m[i.categorie] = m[i.categorie] || []).push(i); });
-    return m;
-  }, [items]);
+  const priceOf = (it: Item) => (isSell ? it.verkoopprijs : it.aankoopprijs);
+  const results = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    let list = items;
+    if (s) list = items.filter(i => i.item.toLowerCase().includes(s) || i.categorie.toLowerCase().includes(s));
+    return list.slice(0, 60);
+  }, [q, items]);
 
-  function pick(name: string) {
-    setSel(name);
-    const it = byName[name];
-    const p = mode === "Verkoop" ? it?.verkoopprijs : it?.aankoopprijs;
-    setPrice(p == null ? "" : p);
+  function add(it: Item) {
+    setLines(prev => {
+      const i = prev.findIndex(l => l.item === it.item);
+      if (i >= 0) { const c = [...prev]; c[i] = { ...c[i], aantal: c[i].aantal + 1 }; return c; }
+      return [...prev, { item: it.item, aantal: 1, prijs_ps: priceOf(it) ?? 0 }];
+    });
   }
-  function switchMode(m: "Verkoop" | "Inkoop") {
-    setMode(m);
-    const it = byName[sel];
-    const p = m === "Verkoop" ? it?.verkoopprijs : it?.aankoopprijs;
-    setPrice(p == null ? "" : p);
-  }
-  function addLine() {
-    if (!sel || qty <= 0 || price === "") { setMsg({ t: "Kies item, aantal en prijs", err: true }); return; }
-    setLines([...lines, { item: sel, aantal: qty, prijs_ps: Number(price) }]);
-  }
+  function setQty(i: number, d: number) { setLines(p => p.map((l, j) => j === i ? { ...l, aantal: Math.max(1, l.aantal + d) } : l)); }
+  function setPrice(i: number, v: number) { setLines(p => p.map((l, j) => j === i ? { ...l, prijs_ps: v } : l)); }
+  function del(i: number) { setLines(p => p.filter((_, j) => j !== i)); }
   const total = lines.reduce((a, l) => a + l.aantal * l.prijs_ps, 0);
 
   async function submit() {
     if (!lines.length) { setMsg({ t: "Voeg eerst items toe", err: true }); return; }
-    if (mode === "Inkoop" && !klant.trim()) { setMsg({ t: "Klantnaam verplicht bij inkoop", err: true }); return; }
+    if (!isSell && !klant.trim()) { setMsg({ t: "Klantnaam verplicht bij inkoop", err: true }); return; }
     setBusy(true);
     try {
       const r = await recordTransaction({ type: mode, klant, betaald: paid, notitie: note, lines });
-      setMsg({ t: `${mode} geregistreerd (${r.count} regel${r.count > 1 ? "s" : ""})` });
-      setLines([]); setNote(""); setKlant("");
+      setMsg({ t: `${mode} geregistreerd (${r.count})` });
+      setLines([]); setNote(""); setKlant(""); setQ("");
     } catch (e: any) { setMsg({ t: "Fout: " + e.message, err: true }); }
     setBusy(false);
   }
-  const it = byName[sel];
-  const other = it ? (mode === "Verkoop" ? it.aankoopprijs : it.verkoopprijs) : null;
 
   return (
-    <div className="panel">
-      <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid #2c3327", marginBottom: 8 }}>
-        <button onClick={() => switchMode("Verkoop")} style={{ flex: 1, padding: 12, border: 0, fontWeight: 800, cursor: "pointer", background: mode === "Verkoop" ? "#2E7D32" : "#20261d", color: mode === "Verkoop" ? "#fff" : "#9aa593" }}>VERKOOP</button>
-        <button onClick={() => switchMode("Inkoop")} style={{ flex: 1, padding: 12, border: 0, fontWeight: 800, cursor: "pointer", background: mode === "Inkoop" ? "#C62828" : "#20261d", color: mode === "Inkoop" ? "#fff" : "#9aa593" }}>INKOOP</button>
+    <div className="panel" style={{ borderColor: accent, display: "flex", flexDirection: "column", minHeight: 520 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <span style={{ width: 12, height: 12, borderRadius: 3, background: accent }} />
+        <h3 className="display" style={{ fontSize: 20, margin: 0, color: accent }}>{isSell ? "VERKOOP" : "INKOOP"}</h3>
+        <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>{isSell ? "aan de klant" : "van de klant"}</span>
       </div>
-      {mode === "Inkoop" && (<><label>Klant (verplicht)</label><input value={klant} onChange={e => setKlant(e.target.value)} /></>)}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-        <div style={{ flex: 2, minWidth: 160 }}><label>Item</label>
-          <select value={sel} onChange={e => pick(e.target.value)}>
-            {Object.entries(cats).sort((a, b) => a[0] === "Diversen" ? 1 : b[0] === "Diversen" ? -1 : a[0].localeCompare(b[0])).map(([c, list]) => <optgroup key={c} label={c}>{list.map(i => <option key={i.item} value={i.item}>{i.item}</option>)}</optgroup>)}
-          </select>
-        </div>
-        <div style={{ width: 80 }}><label>Aantal</label><input type="number" min={1} value={qty} onChange={e => setQty(Number(e.target.value))} /></div>
-        <div style={{ width: 110 }}><label>Prijs p.s.</label><input type="number" value={price} onChange={e => setPrice(e.target.value === "" ? "" : Number(e.target.value))} /></div>
-        <button className="btn sm" onClick={addLine}>+ Toevoegen</button>
+
+      <input placeholder="🔍 Zoek item…" value={q} onChange={e => setQ(e.target.value)} />
+      <div style={{ maxHeight: 190, overflowY: "auto", margin: "8px 0 6px", border: "1px solid var(--line)", borderRadius: 10 }}>
+        {results.map(it => {
+          const p = priceOf(it);
+          return (
+            <button key={it.item} onClick={() => add(it)} className="kres"
+              style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8,
+                background: "transparent", border: 0, borderBottom: "1px solid var(--line)", color: "var(--cream)",
+                padding: "9px 11px", cursor: "pointer", textAlign: "left", fontSize: 13.5 }}>
+              <span>{it.item} <span className="muted" style={{ fontSize: 11 }}>· {it.categorie}</span></span>
+              <b style={{ color: p == null ? "var(--muted)" : accent, whiteSpace: "nowrap" }}>{p == null ? "vrije prijs" : eur(p)}</b>
+            </button>
+          );
+        })}
+        {results.length === 0 && <div className="muted" style={{ padding: 12, fontSize: 13 }}>Geen resultaten.</div>}
       </div>
-      <p style={{ color: "#9aa593", fontSize: 12 }}>{price === "" ? "⚠ Geen richtprijs — vul handmatig in. " : "Richtprijs. "}{other != null ? `Andere kant: ${eur(other)}. ` : ""}{it?.opmerking || ""}</p>
-      {lines.length > 0 && (
-        <table><thead><tr><th>Item</th><th className="r">Aantal</th><th className="r">Prijs</th><th className="r">Totaal</th><th /></tr></thead>
-          <tbody>{lines.map((l, i) => <tr key={i}><td>{l.item}</td><td className="r">{l.aantal}</td><td className="r">{eur(l.prijs_ps)}</td><td className="r">{eur(l.aantal * l.prijs_ps)}</td>
-            <td className="r"><span style={{ color: "#e23b3b", cursor: "pointer" }} onClick={() => setLines(lines.filter((_, j) => j !== i))}>✕</span></td></tr>)}</tbody>
-        </table>
-      )}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14 }}>
-        <div><span style={{ color: "#9aa593" }}>Totaal</span><div style={{ fontSize: 26, fontWeight: 900, color: "#3ddc4a" }}>{eur(total)}</div></div>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, textTransform: "none", color: "#f3f0e6" }}><input type="checkbox" style={{ width: "auto" }} checked={paid} onChange={e => setPaid(e.target.checked)} /> Betaald?</label>
+
+      {!isSell && (<><label>Klant (verplicht)</label><input value={klant} onChange={e => setKlant(e.target.value)} placeholder="Naam klant" /></>)}
+
+      <div style={{ flex: 1, minHeight: 60, marginTop: 10 }}>
+        {lines.length === 0 ? <p className="muted" style={{ fontSize: 13, margin: "6px 0" }}>Klik items hierboven om ze toe te voegen. 🛒</p> : (
+          <div>
+            {lines.map((l, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--line)" }}>
+                <span style={{ flex: 1, fontSize: 13.5, minWidth: 0 }}>{l.item}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <button className="qbtn" onClick={() => setQty(i, -1)}>−</button>
+                  <span style={{ width: 22, textAlign: "center", fontWeight: 700 }}>{l.aantal}</span>
+                  <button className="qbtn" onClick={() => setQty(i, 1)}>+</button>
+                </div>
+                <input type="number" value={l.prijs_ps} onChange={e => setPrice(i, Number(e.target.value))}
+                  style={{ width: 76, padding: "5px 7px", fontSize: 13 }} />
+                <b style={{ width: 62, textAlign: "right", fontSize: 13 }}>{eur(l.aantal * l.prijs_ps)}</b>
+                <span onClick={() => del(i)} style={{ color: "var(--red)", cursor: "pointer", fontWeight: 900, padding: "0 2px" }}>✕</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      <label>Notitie</label><input value={note} onChange={e => setNote(e.target.value)} />
-      {msg && <p style={{ color: msg.err ? "#e23b3b" : "#3ddc4a", fontSize: 14 }}>{msg.t}</p>}
-      <div style={{ marginTop: 12 }}><button className={"btn" + (mode === "Inkoop" ? " red" : "")} style={{ width: "100%", color: "#fff" }} disabled={busy} onClick={submit}>{busy ? "Bezig…" : `REGISTREER ${mode.toUpperCase()}`}</button></div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+        <div><span className="muted" style={{ fontSize: 12 }}>Totaal</span><div className="display" style={{ fontSize: 30, color: accent }}>{eur(total)}</div></div>
+        <label style={{ display: "flex", alignItems: "center", gap: 7, textTransform: "none", color: "var(--cream)", margin: 0, fontSize: 13 }}>
+          <input type="checkbox" style={{ width: "auto" }} checked={paid} onChange={e => setPaid(e.target.checked)} /> Betaald?
+        </label>
+      </div>
+      <input value={note} onChange={e => setNote(e.target.value)} placeholder="Notitie (optioneel)" style={{ marginTop: 8 }} />
+      {msg && <p style={{ color: msg.err ? "var(--red)" : accent, fontSize: 13, margin: "8px 0 0" }}>{msg.t}</p>}
+      <button className={"btn" + (isSell ? "" : " red")} style={{ width: "100%", marginTop: 12, color: "#fff", fontSize: 15 }}
+        disabled={busy} onClick={submit}>{busy ? "Bezig…" : `REGISTREER ${mode.toUpperCase()}`}</button>
+      <style>{`.kres:hover{background:rgba(255,255,255,.04) !important}
+        .qbtn{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);color:var(--cream);cursor:pointer;font-size:16px;line-height:1}
+        .qbtn:hover{border-color:${accent};color:${accent}}`}</style>
     </div>
   );
 }
